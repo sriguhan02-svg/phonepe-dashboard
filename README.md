@@ -56,6 +56,15 @@ The project focuses on transforming raw transactional data into meaningful insig
 
 ---
 
+## 📊 Key Insights
+
+- Digital transactions show consistent year-over-year growth
+- Top states contribute majority of transaction volume
+- User adoption is dominated by a few major brands
+- Insurance usage is growing but still concentrated
+
+---
+
 ## 📌 Author
 
 **Sriguhan**
