@@ -18,7 +18,6 @@ txn_df = clean_cols(txn_df)
 user_df = clean_cols(user_df)
 ins_df = clean_cols(ins_df)
 
-# ✅ FIX TYPES (NO .5 VALUES)
 txn_df["Year"] = txn_df["Year"].astype(int)
 txn_df["Quarter"] = txn_df["Quarter"].astype(int)
 
