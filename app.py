@@ -91,10 +91,85 @@ c1.metric("💰 Transactions", f"₹ {txn/1e7:.2f} Cr", f"{growth(txn,txn_p):.1f
 c2.metric("👥 Users", f"{usr/1e6:.2f} M", f"{growth(usr,usr_p):.1f}%")
 c3.metric("🛡️ Insurance", f"₹ {ins/1e7:.2f} Cr", f"{growth(ins,ins_p):.1f}%")
 
-File "/mount/src/phonepe-dashboard/app.py", line 97
-  File "/mount/src/phonepe-dashboard/app.py", line 99
-  ^
-IndentationError: expected an indented block after 'if' statement on line 95
+# ================= HOME =================
+if page=="🏠 Home":
+
+    # ----------- MAP FIX -----------
+
+    def clean_state(name):
+        return (
+            str(name).lower()
+            .replace("&", "and")
+            .replace("-", " ")
+            .strip()
+        )
+
+    geo_states = {
+        clean_state(f["properties"]["NAME_1"]): f["properties"]["NAME_1"]
+        for f in geo["features"]
+    }
+
+    # Fix Odisha naming issue
+    geo_states["odisha"] = geo_states.get("orissa", "Odisha")
+
+    df = txn_df[txn_df["Year"] == year].copy()
+
+    df["State_clean"] = df["State"].apply(clean_state)
+    df["State_geo"] = df["State_clean"].map(geo_states)
+
+    df = df[df["State_geo"].notna()]
+
+    df = df.groupby("State_geo", as_index=False).agg({
+        "Transaction_Amount": "sum",
+        "Transaction_Count": "sum"
+    })
+
+    fig = px.choropleth(
+        df,
+        geojson=geo,
+        locations="State_geo",
+        featureidkey="properties.NAME_1",
+        color="Transaction_Amount",
+        hover_name="State_geo",
+        hover_data={
+            "Transaction_Amount": ":,.0f",
+            "Transaction_Count": True
+        },
+        color_continuous_scale="Blues"
+    )
+
+    fig.update_traces(marker_line_width=0.7, marker_line_color="black")
+    fig.update_layout(template=template, margin=dict(l=0, r=0, t=0, b=0))
+    fig.update_geos(fitbounds="locations", visible=False)
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ----------- DRILLDOWN -----------
+
+    st.markdown("### 📍 State Drilldown")
+
+    s_df = txn_df[txn_df["State"] == state]
+
+    col1, col2 = st.columns(2)
+
+    # Pie chart
+    df_pie = s_df.groupby("Transaction_Type")["Transaction_Amount"].sum().reset_index()
+
+    fig = px.pie(df_pie, names="Transaction_Type", values="Transaction_Amount", hole=0.5)
+    fig.update_traces(textinfo='percent+label')
+    fig.update_layout(template=template)
+
+    col1.plotly_chart(fig, use_container_width=True)
+
+    # Quarter chart
+    df_q = s_df.groupby("Quarter")["Transaction_Amount"].sum().reset_index()
+    df_q["Quarter"] = df_q["Quarter"].astype(int)
+
+    fig = px.bar(df_q, x="Quarter", y="Transaction_Amount")
+    fig.update_xaxes(tickvals=[1,2,3,4], ticktext=['Q1','Q2','Q3','Q4'])
+    fig.update_layout(template=template)
+
+    col2.plotly_chart(fig, use_container_width=True)
 
 # ================= ANALYSIS =================
 else:
