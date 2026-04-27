@@ -18,6 +18,15 @@ txn_df = clean_cols(txn_df)
 user_df = clean_cols(user_df)
 ins_df = clean_cols(ins_df)
 
+# ✅ FIX TYPES (NO .5 VALUES)
+txn_df["Year"] = txn_df["Year"].astype(int)
+txn_df["Quarter"] = txn_df["Quarter"].astype(int)
+
+user_df["Year"] = user_df["Year"].astype(int)
+
+ins_df["Year"] = ins_df["Year"].astype(int)
+ins_df["Quarter"] = ins_df["Quarter"].astype(int)
+
 # ================= GEO =================
 with open("india_states.geojson") as f:
     geo = json.load(f)
@@ -71,7 +80,7 @@ st.caption("Transactions • Users • Insurance Insights Across India")
 st.markdown("---")
 
 # ================= SIDEBAR =================
-years = sorted(txn_df["Year"].astype(int).unique())
+years = sorted(txn_df["Year"].unique())
 year = st.sidebar.selectbox("📅 Year", years)
 
 state_list = sorted(txn_df["State"].unique())
@@ -144,7 +153,9 @@ if page == "🏠 Home":
     col1.plotly_chart(fig, use_container_width=True)
 
     df = state_df.groupby("Quarter")["Transaction_Amount"].sum().reset_index()
+    df["Quarter"] = df["Quarter"].astype(int)  # 🔥 FIX
     fig = px.bar(df, x="Quarter", y="Transaction_Amount")
+    fig.update_xaxes(dtick=1)
     fig.update_layout(template=template)
     col2.plotly_chart(fig, use_container_width=True)
 
@@ -157,14 +168,12 @@ else:
     if option=="Transactions":
 
         df = txn_df.groupby("Year")["Transaction_Amount"].sum().reset_index()
-        df["Year"]=df["Year"].astype(int)
 
         fig = px.line(df,x="Year",y="Transaction_Amount",markers=True)
-        fig.update_layout(template=template)
         fig.update_xaxes(dtick=1)
+        fig.update_layout(template=template)
         st.plotly_chart(fig,use_container_width=True)
 
-        # growth
         df["Growth %"] = df["Transaction_Amount"].pct_change()*100
         fig = px.bar(df,x="Year",y="Growth %")
         fig.update_layout(template=template)
@@ -183,11 +192,10 @@ else:
     elif option=="Users":
 
         df = user_df.groupby("Year")["User_Count"].sum().reset_index()
-        df["Year"]=df["Year"].astype(int)
 
         fig = px.line(df,x="Year",y="User_Count",markers=True)
-        fig.update_layout(template=template)
         fig.update_xaxes(dtick=1)
+        fig.update_layout(template=template)
         st.plotly_chart(fig,use_container_width=True)
 
         df = user_df.groupby("Brand")["User_Count"].sum().reset_index()\
@@ -203,11 +211,10 @@ else:
     elif option=="Insurance":
 
         df = ins_df.groupby("Year")["Insurance_Amount"].sum().reset_index()
-        df["Year"]=df["Year"].astype(int)
 
         fig = px.line(df,x="Year",y="Insurance_Amount",markers=True)
-        fig.update_layout(template=template)
         fig.update_xaxes(dtick=1)
+        fig.update_layout(template=template)
         st.plotly_chart(fig,use_container_width=True)
 
         df = ins_df.groupby("State")["Insurance_Amount"].sum().reset_index()\
