@@ -91,35 +91,10 @@ c1.metric("💰 Transactions", f"₹ {txn/1e7:.2f} Cr", f"{growth(txn,txn_p):.1f
 c2.metric("👥 Users", f"{usr/1e6:.2f} M", f"{growth(usr,usr_p):.1f}%")
 c3.metric("🛡️ Insurance", f"₹ {ins/1e7:.2f} Cr", f"{growth(ins,ins_p):.1f}%")
 
-# ================= HOME =================
-if page=="🏠 Home":
-
-File "/mount/src/phonepe-dashboard/app.py", line 99
-  def clean_state(name):
+File "/mount/src/phonepe-dashboard/app.py", line 97
+  File "/mount/src/phonepe-dashboard/app.py", line 99
   ^
 IndentationError: expected an indented block after 'if' statement on line 95
-    
-    st.markdown("### 📍 State Drilldown")
-
-    s_df = txn_df[txn_df["State"]==state]
-
-    col1,col2 = st.columns(2)
-
-    # Pie
-    df = s_df.groupby("Transaction_Type")["Transaction_Amount"].sum().reset_index()
-    fig = px.pie(df, names="Transaction_Type", values="Transaction_Amount", hole=0.5)
-    fig.update_traces(textinfo='percent+label')
-    fig.update_layout(template=template)
-    col1.plotly_chart(fig, use_container_width=True)
-
-    # Quarter
-    df = s_df.groupby("Quarter")["Transaction_Amount"].sum().reset_index()
-    df["Quarter"] = df["Quarter"].astype(int)
-
-    fig = px.bar(df, x="Quarter", y="Transaction_Amount")
-    fig.update_xaxes(tickvals=[1,2,3,4], ticktext=['Q1','Q2','Q3','Q4'])
-    fig.update_layout(template=template)
-    col2.plotly_chart(fig, use_container_width=True)
 
 # ================= ANALYSIS =================
 else:
