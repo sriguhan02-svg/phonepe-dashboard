@@ -63,16 +63,24 @@ state_map = {
 }
 
 def map_state(s):
-    return state_map.get(s.lower(), None)
+    return state_map.get(str(s).lower(), None)
 
-# ================= UI HEADER =================
+# ================= UI =================
 st.title("📊 PhonePe Analytics Dashboard")
-st.caption("Insights into Transactions, Users & Insurance across India")
+st.caption("Transactions • Users • Insurance Insights Across India")
 st.markdown("---")
 
-# ================= FILTERS =================
+# ================= SIDEBAR =================
 years = sorted(txn_df["Year"].astype(int).unique())
 year = st.sidebar.selectbox("📅 Year", years)
+
+state_list = sorted(txn_df["State"].unique())
+selected_state = st.sidebar.selectbox("📍 Select State", state_list)
+
+dark_mode = st.sidebar.toggle("🌙 Dark Mode")
+template = "plotly_dark" if dark_mode else "plotly"
+
+page = st.sidebar.selectbox("Navigation", ["🏠 Home","📊 Analysis"])
 
 # ================= KPI =================
 def growth(curr, prev):
@@ -87,23 +95,24 @@ txn_prev = txn_df[txn_df["Year"] == prev]["Transaction_Amount"].sum()
 usr_prev = user_df[user_df["Year"] == prev]["User_Count"].sum()
 ins_prev = ins_df[ins_df["Year"] == prev]["Insurance_Amount"].sum()
 
-c1, c2, c3 = st.columns(3)
+c1,c2,c3 = st.columns(3)
 c1.metric("💰 Transactions", f"₹ {txn/1e7:.2f} Cr", f"{growth(txn,txn_prev):.1f}% YoY")
 c2.metric("👥 Users", f"{usr/1e6:.2f} M", f"{growth(usr,usr_prev):.1f}% YoY")
 c3.metric("🛡️ Insurance", f"₹ {ins/1e7:.2f} Cr", f"{growth(ins,ins_prev):.1f}% YoY")
 
 # ================= INSIGHTS =================
 def insight_txn(df):
-    st.success(f"🔍 {df.iloc[0]['State']} leads in transactions.")
+    top = df.iloc[0]
+    share = (top["Transaction_Amount"] / df["Transaction_Amount"].sum()) * 100
+    st.success(f"🔍 {top['State']} contributes {share:.1f}% of total transactions.")
 
 def insight_user(df):
-    st.success(f"🔍 {df.iloc[0]['Brand']} dominates user base.")
+    top = df.iloc[0]
+    st.success(f"🔍 {top['Brand']} leads user adoption.")
 
 def insight_ins(df):
-    st.success(f"🔍 {df.iloc[0]['State']} leads in insurance adoption.")
-
-# ================= NAV =================
-page = st.sidebar.selectbox("Navigation", ["🏠 Home","📊 Analysis"])
+    top = df.iloc[0]
+    st.success(f"🔍 {top['State']} dominates insurance value.")
 
 # ================= HOME =================
 if page == "🏠 Home":
@@ -118,9 +127,26 @@ if page == "🏠 Home":
                         locations="State_clean",
                         color="Transaction_Amount",
                         color_continuous_scale="Blues")
-
+    fig.update_layout(template=template)
     fig.update_geos(fitbounds="locations", visible=False)
     st.plotly_chart(fig, use_container_width=True)
+
+    # ===== DRILLDOWN =====
+    st.markdown("### 📍 State Deep Dive")
+
+    state_df = txn_df[(txn_df["State"] == selected_state)]
+
+    col1,col2 = st.columns(2)
+
+    df = state_df.groupby("Transaction_Type")["Transaction_Amount"].sum().reset_index()
+    fig = px.pie(df, names="Transaction_Type", values="Transaction_Amount", hole=0.4)
+    fig.update_layout(template=template)
+    col1.plotly_chart(fig, use_container_width=True)
+
+    df = state_df.groupby("Quarter")["Transaction_Amount"].sum().reset_index()
+    fig = px.bar(df, x="Quarter", y="Transaction_Amount")
+    fig.update_layout(template=template)
+    col2.plotly_chart(fig, use_container_width=True)
 
 # ================= ANALYSIS =================
 else:
@@ -128,88 +154,73 @@ else:
     option = st.selectbox("Choose Analysis", ["Transactions","Users","Insurance"])
 
 # ---------- TRANSACTIONS ----------
-    if option == "Transactions":
-
-        st.markdown("### 📈 Trends")
+    if option=="Transactions":
 
         df = txn_df.groupby("Year")["Transaction_Amount"].sum().reset_index()
-        df["Year"] = df["Year"].astype(int)
-        fig = px.line(df,x="Year",y="Transaction_Amount",markers=True)
-        fig.update_xaxes(dtick=1)
-        st.plotly_chart(fig, use_container_width=True)
+        df["Year"]=df["Year"].astype(int)
 
-        st.markdown("### 🏆 Top States")
+        fig = px.line(df,x="Year",y="Transaction_Amount",markers=True)
+        fig.update_layout(template=template)
+        fig.update_xaxes(dtick=1)
+        st.plotly_chart(fig,use_container_width=True)
+
+        # growth
+        df["Growth %"] = df["Transaction_Amount"].pct_change()*100
+        fig = px.bar(df,x="Year",y="Growth %")
+        fig.update_layout(template=template)
+        st.plotly_chart(fig,use_container_width=True)
 
         df = txn_df.groupby("State")["Transaction_Amount"].sum().reset_index()\
-             .sort_values("Transaction_Amount",ascending=False).head(10)
+            .sort_values("Transaction_Amount",ascending=False).head(10)
 
         fig = px.bar(df,x="Transaction_Amount",y="State",orientation="h")
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(template=template)
+        st.plotly_chart(fig,use_container_width=True)
 
         insight_txn(df)
 
-        st.markdown("### 🔍 Breakdown")
-
-        df = txn_df.groupby("Transaction_Type")["Transaction_Amount"].sum().reset_index()
-        st.plotly_chart(px.pie(df,names="Transaction_Type",values="Transaction_Amount",hole=0.4),
-                        use_container_width=True)
-
 # ---------- USERS ----------
-    elif option == "Users":
-
-        st.markdown("### 📈 Trends")
+    elif option=="Users":
 
         df = user_df.groupby("Year")["User_Count"].sum().reset_index()
-        df["Year"] = df["Year"].astype(int)
+        df["Year"]=df["Year"].astype(int)
 
         fig = px.line(df,x="Year",y="User_Count",markers=True)
+        fig.update_layout(template=template)
         fig.update_xaxes(dtick=1)
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.markdown("### 🏆 Top Brands")
+        st.plotly_chart(fig,use_container_width=True)
 
         df = user_df.groupby("Brand")["User_Count"].sum().reset_index()\
-             .sort_values("User_Count",ascending=False).head(10)
+            .sort_values("User_Count",ascending=False).head(10)
 
         fig = px.bar(df,x="Brand",y="User_Count")
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(template=template)
+        st.plotly_chart(fig,use_container_width=True)
 
         insight_user(df)
 
-        st.markdown("### 🔍 Brand Share")
-
-        df = user_df.groupby("Brand")["User_Percentage"].mean().reset_index()
-        st.plotly_chart(px.pie(df,names="Brand",values="User_Percentage",hole=0.4),
-                        use_container_width=True)
-
 # ---------- INSURANCE ----------
-    elif option == "Insurance":
-
-        st.markdown("### 📈 Trends")
+    elif option=="Insurance":
 
         df = ins_df.groupby("Year")["Insurance_Amount"].sum().reset_index()
-        df["Year"] = df["Year"].astype(int)
+        df["Year"]=df["Year"].astype(int)
 
         fig = px.line(df,x="Year",y="Insurance_Amount",markers=True)
+        fig.update_layout(template=template)
         fig.update_xaxes(dtick=1)
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.markdown("### 🏆 Top States")
+        st.plotly_chart(fig,use_container_width=True)
 
         df = ins_df.groupby("State")["Insurance_Amount"].sum().reset_index()\
-             .sort_values("Insurance_Amount",ascending=False).head(10)
+            .sort_values("Insurance_Amount",ascending=False).head(10)
 
         fig = px.bar(df,x="Insurance_Amount",y="State",orientation="h")
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(template=template)
+        st.plotly_chart(fig,use_container_width=True)
 
         insight_ins(df)
 
-        st.markdown("### 🔍 Distribution")
-
-        df = ins_df.groupby("State").agg({
-            "Insurance_Count":"sum",
-            "Insurance_Amount":"sum"
-        }).reset_index()
-
-        st.plotly_chart(px.scatter(df,x="Insurance_Count",y="Insurance_Amount"),
-                        use_container_width=True)
+# ================= DOWNLOAD =================
+st.markdown("### 📥 Export Data")
+st.download_button("Download Transactions CSV",
+                   txn_df.to_csv(index=False),
+                   file_name="transactions.csv")
