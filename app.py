@@ -94,20 +94,61 @@ c3.metric("🛡️ Insurance", f"₹ {ins/1e7:.2f} Cr", f"{growth(ins,ins_p):.1f
 # ================= HOME =================
 if page=="🏠 Home":
 
-    df = txn_df[txn_df["Year"]==year].groupby("State")["Transaction_Amount"].sum().reset_index()
-    df["State_clean"] = df["State"].apply(map_state)
-    df = df.dropna()
+        # ----------- FIXED MAP -----------
 
-    fig = px.choropleth(df, geojson=geo, locations="State_clean",
-                        featureidkey="properties.NAME_1",
-                        color="Transaction_Amount",
-                        color_continuous_scale="Blues")
+    def clean_state(name):
+        return (
+            str(name).lower()
+            .replace("&", "and")
+            .replace("-", " ")
+            .strip()
+        )
+
+    # Build geo mapping dynamically
+    geo_states = {
+        clean_state(f["properties"]["NAME_1"]): f["properties"]["NAME_1"]
+        for f in geo["features"]
+    }
+
+    df = txn_df[txn_df["Year"] == year].copy()
+
+    # Clean dataset names
+    df["State_clean"] = df["State"].apply(clean_state)
+
+    # Map to geojson names
+    df["State_geo"] = df["State_clean"].map(geo_states)
+
+    # Remove unmatched safely
+    df = df[df["State_geo"].notna()]
+
+    # Aggregate properly
+    df = df.groupby("State_geo", as_index=False).agg({
+        "Transaction_Amount": "sum",
+        "Transaction_Count": "sum"
+    })
+
+    # Plot map
+    fig = px.choropleth(
+        df,
+        geojson=geo,
+        locations="State_geo",
+        featureidkey="properties.NAME_1",
+        color="Transaction_Amount",
+        hover_name="State_geo",
+        hover_data={
+            "Transaction_Amount": ":,.0f",
+            "Transaction_Count": True
+        },
+        color_continuous_scale="Blues"
+    )
+
+    fig.update_traces(marker_line_width=0.6, marker_line_color="black")
 
     fig.update_layout(template=template, margin=dict(l=0,r=0,t=0,b=0))
     fig.update_geos(fitbounds="locations", visible=False)
 
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.markdown("### 📍 State Drilldown")
 
     s_df = txn_df[txn_df["State"]==state]
