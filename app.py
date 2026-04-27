@@ -6,9 +6,17 @@ import json
 st.set_page_config(layout="wide", page_title="PhonePe Analytics")
 
 # ---------------- LOAD DATA ----------------
-txn_df = pd.read_csv("aggregated_transaction.csv")
-user_df = pd.read_csv("aggregated_user.csv")
-ins_df = pd.read_csv("aggregated_insurance.csv")
+txn_df = pd.read_csv("aggregated_transaction.csv", sep=";")
+user_df = pd.read_csv("aggregated_user.csv", sep=";")
+ins_df = pd.read_csv("aggregated_insurance.csv", sep=";")
+
+def clean_cols(df):
+    df.columns = df.columns.str.replace('"', '').str.strip()
+    return df
+
+txn_df = clean_cols(txn_df)
+user_df = clean_cols(user_df)
+ins_df = clean_cols(ins_df)
 
 # ---------------- GEOJSON ----------------
 with open("india_states.geojson") as f:
